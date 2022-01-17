@@ -17,12 +17,12 @@ namespace DrDotnet
         {
             string strExeFilePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             string strWorkPath = Path.GetDirectoryName(strExeFilePath);
-            string profilerDll = Path.Combine(strWorkPath, "profiler.dll");
+            string profilerDll = Path.Combine(strWorkPath, "Profiler.Windows.dll");
 
             var sessionId = Guid.NewGuid();
 
             DiagnosticsClient client = new DiagnosticsClient(processId);
-            client.AttachProfiler(TimeSpan.FromSeconds(10), ProfilerId, profilerDll, Encoding.UTF8.GetBytes(sessionId.ToString() + "\0"));
+            client.AttachProfiler(TimeSpan.FromSeconds(10), new Guid("{805A308B-061C-47F3-9B30-F785C3186E84}"), profilerDll/*, Encoding.UTF8.GetBytes(sessionId.ToString() + "\0")*/);
 
             logger.Log($"Attached profiler {ProfilerId} with session {sessionId} to process {processId}");
 
