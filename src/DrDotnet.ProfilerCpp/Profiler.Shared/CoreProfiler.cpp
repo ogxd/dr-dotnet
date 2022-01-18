@@ -2,19 +2,9 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include <thread>
-#include <chrono>
 #include "CoreProfiler.h"
 #include "Logger.h"
 #include "OS.h"
-
-#define TRY(x)  { \
-					HRESULT hr; \
-					if (FAILED(hr = x)) { \
-						printf("Failed: '%s'. Reason: 0x%x.\n", #x, hr); \
-						return hr; \
-					} \
-				}
 
 HRESULT __stdcall CoreProfiler::QueryInterface(REFIID riid, void** ppvObject) {
 
@@ -31,8 +21,7 @@ HRESULT __stdcall CoreProfiler::QueryInterface(REFIID riid, void** ppvObject) {
 	//StringFromIID(__uuidof(ICorProfilerCallback2), &pStr2);
 	//wprintf(L"2-> %s", pStr2);
 
-	if (riid == __uuidof(IUnknown) ||
-		riid == __uuidof(ICorProfilerCallback) ||
+	if (riid == __uuidof(ICorProfilerCallback) ||
 		riid == __uuidof(ICorProfilerCallback2) ||
 		riid == __uuidof(ICorProfilerCallback3) ||
 		riid == __uuidof(ICorProfilerCallback4) ||
@@ -42,17 +31,18 @@ HRESULT __stdcall CoreProfiler::QueryInterface(REFIID riid, void** ppvObject) {
 		riid == __uuidof(ICorProfilerCallback8) ||
 		riid == __uuidof(ICorProfilerCallback9) ||
 		riid == __uuidof(ICorProfilerCallback10) ||
-		riid == __uuidof(ICorProfilerCallback11)) {
+		riid == __uuidof(ICorProfilerCallback11)) 
+	{
 		AddRef();
-		*ppvObject = static_cast<ICorProfilerCallback3*>(this);
 
-		wprintf(L"OK");
+		*ppvObject = static_cast<ICorProfilerCallback11*>(this);
+
+		Logger::Info("OK");
 
 		return S_OK;
 	}
 
-	wprintf(L"FAIL");
-
+	Logger::Info("NO INTERFACE");
 
 	return E_NOINTERFACE;
 }
@@ -74,6 +64,7 @@ HRESULT CoreProfiler::Initialize(IUnknown* pICorProfilerInfoUnk) {
 }
 
 HRESULT CoreProfiler::Shutdown() {
+	_info.Release();
 	return S_OK;
 }
 
@@ -378,31 +369,10 @@ HRESULT CoreProfiler::HandleDestroyed(GCHandleID handleId) {
 }
 
 HRESULT CoreProfiler::InitializeForAttach(IUnknown* pICorProfilerInfoUnk, void* pvClientData, UINT cbClientData) {
-	Logger::Info(__FUNCTION__);
-
-	pICorProfilerInfoUnk->QueryInterface(&_info);
-	assert(_info);
-
-	TRY(_info->SetEventMask(COR_PRF_MONITOR_GC));
-
-	Logger::Info("ATTACHED!");
-
 	return S_OK;
 }
 
 HRESULT CoreProfiler::ProfilerAttachComplete() {
-
-	Logger::Info(__FUNCTION__);
-
-	//auto m_grabber = std::thread{
-	//	[&]() {
-	//		std::this_thread::sleep_for(std::chrono::seconds(60));
-	//		_info->RequestProfilerDetach(3000);
-	//	}
-	//};
-
-	//m_grabber.detach();
-
 	return S_OK;
 }
 
@@ -410,49 +380,67 @@ HRESULT CoreProfiler::ProfilerDetachSucceeded() {
 	return S_OK;
 }
 
-//HRESULT CoreProfiler::ReJITCompilationStarted(FunctionID functionId, ReJITID rejitId, BOOL fIsSafeToBlock) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::GetReJITParameters(ModuleID moduleId, mdMethodDef methodId, ICorProfilerFunctionControl* pFunctionControl) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::ReJITCompilationFinished(FunctionID functionId, ReJITID rejitId, HRESULT hrStatus, BOOL fIsSafeToBlock) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::ReJITError(ModuleID moduleId, mdMethodDef methodId, FunctionID functionId, HRESULT hrStatus) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::MovedReferences2(ULONG cMovedObjectIDRanges, ObjectID* oldObjectIDRangeStart, ObjectID* newObjectIDRangeStart, SIZE_T* cObjectIDRangeLength) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::SurvivingReferences2(ULONG cSurvivingObjectIDRanges, ObjectID* objectIDRangeStart, SIZE_T* cObjectIDRangeLength) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::ConditionalWeakTableElementReferences(ULONG cRootRefs, ObjectID* keyRefIds, ObjectID* valueRefIds, GCHandleID* rootIds) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::GetAssemblyReferences(const WCHAR* wszAssemblyPath, ICorProfilerAssemblyReferenceProvider* pAsmRefProvider) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::ModuleInMemorySymbolsUpdated(ModuleID moduleId) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::DynamicMethodJITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock, LPCBYTE pILHeader, ULONG cbILHeader) {
-//	return S_OK;
-//}
-//
-//HRESULT CoreProfiler::DynamicMethodJITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock) {
-//	return S_OK;
-//}
+HRESULT CoreProfiler::ReJITCompilationStarted(FunctionID functionId, ReJITID rejitId, BOOL fIsSafeToBlock) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::GetReJITParameters(ModuleID moduleId, mdMethodDef methodId, ICorProfilerFunctionControl* pFunctionControl) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::ReJITCompilationFinished(FunctionID functionId, ReJITID rejitId, HRESULT hrStatus, BOOL fIsSafeToBlock) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::ReJITError(ModuleID moduleId, mdMethodDef methodId, FunctionID functionId, HRESULT hrStatus) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::MovedReferences2(ULONG cMovedObjectIDRanges, ObjectID* oldObjectIDRangeStart, ObjectID* newObjectIDRangeStart, SIZE_T* cObjectIDRangeLength) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::SurvivingReferences2(ULONG cSurvivingObjectIDRanges, ObjectID* objectIDRangeStart, SIZE_T* cObjectIDRangeLength) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::ConditionalWeakTableElementReferences(ULONG cRootRefs, ObjectID* keyRefIds, ObjectID* valueRefIds, GCHandleID* rootIds) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::GetAssemblyReferences(const WCHAR* wszAssemblyPath, ICorProfilerAssemblyReferenceProvider* pAsmRefProvider) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::ModuleInMemorySymbolsUpdated(ModuleID moduleId) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::DynamicMethodJITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock, LPCBYTE pILHeader, ULONG cbILHeader) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::DynamicMethodJITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::DynamicMethodUnloaded(FunctionID functionId) {
+	return S_OK;
+}
+
+// v10
+HRESULT CoreProfiler::EventPipeEventDelivered(EVENTPIPE_PROVIDER provider, DWORD eventId, DWORD eventVersion, ULONG cbMetadataBlob, LPCBYTE metadataBlob, ULONG cbEventData, LPCBYTE eventData, LPCGUID pActivityId, LPCGUID pRelatedActivityId, ThreadID eventThread, ULONG numStackFrames, UINT_PTR stackFrames[]) {
+	return S_OK;
+}
+
+HRESULT CoreProfiler::EventPipeProviderCreated(EVENTPIPE_PROVIDER provider) {
+	return S_OK;
+}
+
+// v11
+HRESULT CoreProfiler::LoadAsNotficationOnly(BOOL* pbNotificationOnly) {
+	return S_OK;
+}
 
 std::string CoreProfiler::GetTypeName(mdTypeDef type, ModuleID module) const {
 	CComPtr<IMetaDataImport> spMetadata;

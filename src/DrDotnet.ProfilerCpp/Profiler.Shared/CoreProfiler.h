@@ -2,39 +2,27 @@
 
 #include "Common.h"
 #include "cor.h"
-//#include "corprof.h"
-//#include "../../../lib/coreclr/inc/cor.h"
 #include "../../../lib/coreclr/pal/prebuilt/inc/corprof.h"
+#include "Logger.h"
 #include <atomic>
 #include <string>
 #include <map>
 
-#pragma region ClassInfo
-struct ClassInfo {
-	ClassInfo(mdTypeDef type, ModuleID module) : Type(type), Module(module) {}
+#define TRY(x)  { \
+					HRESULT hr; \
+					if (FAILED(hr = x)) { \
+						printf("Failed: '%s'. Reason: 0x%x.\n", #x, hr); \
+						return hr; \
+					} \
+				}
 
-	bool operator==(const ClassInfo& other) const {
-		return Type == other.Type && Module == other.Module;
-	}
-
-	mdTypeDef Type;
-	ModuleID Module;
-};
-
-template<>
-struct std::hash<ClassInfo> {
-	size_t operator()(const ClassInfo& ci) const {
-		return ci.Module ^ ci.Type;
-	}
-};
-#pragma endregion
-
-class CoreProfiler : public ICorProfilerCallback3 {
+class CoreProfiler : public ICorProfilerCallback11 {
 public:
-	// Inherited via ICorProfilerCallback8
+	// IUnknown
 	HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObject) override;
 	ULONG __stdcall AddRef(void) override;
 	ULONG __stdcall Release(void) override;
+	// v1
 	HRESULT __stdcall Initialize(IUnknown* pICorProfilerInfoUnk) override;
 	HRESULT __stdcall Shutdown(void) override;
 	HRESULT __stdcall AppDomainCreationStarted(AppDomainID appDomainId) override;
@@ -104,6 +92,7 @@ public:
 	HRESULT __stdcall COMClassicVTableDestroyed(ClassID wrappedClassId, REFGUID implementedIID, void* pVTable) override;
 	HRESULT __stdcall ExceptionCLRCatcherFound(void) override;
 	HRESULT __stdcall ExceptionCLRCatcherExecute(void) override;
+	// v2
 	HRESULT __stdcall ThreadNameChanged(ThreadID threadId, ULONG cchName, WCHAR name[]) override;
 	HRESULT __stdcall GarbageCollectionStarted(int cGenerations, BOOL generationCollected[], COR_PRF_GC_REASON reason) override;
 	HRESULT __stdcall SurvivingReferences(ULONG cSurvivingObjectIDRanges, ObjectID objectIDRangeStart[], ULONG cObjectIDRangeLength[]) override;
@@ -112,22 +101,40 @@ public:
 	HRESULT __stdcall RootReferences2(ULONG cRootRefs, ObjectID rootRefIds[], COR_PRF_GC_ROOT_KIND rootKinds[], COR_PRF_GC_ROOT_FLAGS rootFlags[], UINT_PTR rootIds[]) override;
 	HRESULT __stdcall HandleCreated(GCHandleID handleId, ObjectID initialObjectId) override;
 	HRESULT __stdcall HandleDestroyed(GCHandleID handleId) override;
+	// v3
 	HRESULT __stdcall InitializeForAttach(IUnknown* pCorProfilerInfoUnk, void* pvClientData, UINT cbClientData) override;
 	HRESULT __stdcall ProfilerAttachComplete(void) override;
 	HRESULT __stdcall ProfilerDetachSucceeded(void) override;
-	//HRESULT __stdcall ReJITCompilationStarted(FunctionID functionId, ReJITID rejitId, BOOL fIsSafeToBlock) override;
-	//HRESULT __stdcall GetReJITParameters(ModuleID moduleId, mdMethodDef methodId, ICorProfilerFunctionControl* pFunctionControl) override;
-	//HRESULT __stdcall ReJITCompilationFinished(FunctionID functionId, ReJITID rejitId, HRESULT hrStatus, BOOL fIsSafeToBlock) override;
-	//HRESULT __stdcall ReJITError(ModuleID moduleId, mdMethodDef methodId, FunctionID functionId, HRESULT hrStatus) override;
-	//HRESULT __stdcall MovedReferences2(ULONG cMovedObjectIDRanges, ObjectID oldObjectIDRangeStart[], ObjectID newObjectIDRangeStart[], SIZE_T cObjectIDRangeLength[]) override;
-	//HRESULT __stdcall SurvivingReferences2(ULONG cSurvivingObjectIDRanges, ObjectID objectIDRangeStart[], SIZE_T cObjectIDRangeLength[]) override;
-	//HRESULT __stdcall ConditionalWeakTableElementReferences(ULONG cRootRefs, ObjectID keyRefIds[], ObjectID valueRefIds[], GCHandleID rootIds[]) override;
-	//HRESULT __stdcall GetAssemblyReferences(const WCHAR* wszAssemblyPath, ICorProfilerAssemblyReferenceProvider* pAsmRefProvider) override;
-	//HRESULT __stdcall ModuleInMemorySymbolsUpdated(ModuleID moduleId) override;
-	//HRESULT __stdcall DynamicMethodJITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock, LPCBYTE pILHeader, ULONG cbILHeader) override;
-	//HRESULT __stdcall DynamicMethodJITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock) override;
+	// v4
+	HRESULT __stdcall ReJITCompilationStarted(FunctionID functionId, ReJITID rejitId, BOOL fIsSafeToBlock) override;
+	HRESULT __stdcall GetReJITParameters(ModuleID moduleId, mdMethodDef methodId, ICorProfilerFunctionControl* pFunctionControl) override;
+	HRESULT __stdcall ReJITCompilationFinished(FunctionID functionId, ReJITID rejitId, HRESULT hrStatus, BOOL fIsSafeToBlock) override;
+	HRESULT __stdcall ReJITError(ModuleID moduleId, mdMethodDef methodId, FunctionID functionId, HRESULT hrStatus) override;
+	HRESULT __stdcall MovedReferences2(ULONG cMovedObjectIDRanges, ObjectID oldObjectIDRangeStart[], ObjectID newObjectIDRangeStart[], SIZE_T cObjectIDRangeLength[]) override;
+	HRESULT __stdcall SurvivingReferences2(ULONG cSurvivingObjectIDRanges, ObjectID objectIDRangeStart[], SIZE_T cObjectIDRangeLength[]) override;
+	HRESULT __stdcall ConditionalWeakTableElementReferences(ULONG cRootRefs, ObjectID keyRefIds[], ObjectID valueRefIds[], GCHandleID rootIds[]) override;
+	HRESULT __stdcall GetAssemblyReferences(const WCHAR* wszAssemblyPath, ICorProfilerAssemblyReferenceProvider* pAsmRefProvider) override;
+	HRESULT __stdcall ModuleInMemorySymbolsUpdated(ModuleID moduleId) override;
+	HRESULT __stdcall DynamicMethodJITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock, LPCBYTE pILHeader, ULONG cbILHeader) override;
+	HRESULT __stdcall DynamicMethodJITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock) override;
+	// v9
+	HRESULT __stdcall DynamicMethodUnloaded(FunctionID functionId) override;
+	// v10
+	HRESULT __stdcall EventPipeEventDelivered(EVENTPIPE_PROVIDER provider, DWORD eventId, DWORD eventVersion, ULONG cbMetadataBlob, LPCBYTE metadataBlob, ULONG cbEventData, LPCBYTE eventData, LPCGUID pActivityId, LPCGUID pRelatedActivityId, ThreadID eventThread, ULONG numStackFrames, UINT_PTR stackFrames[]) override;
+	HRESULT __stdcall EventPipeProviderCreated(EVENTPIPE_PROVIDER provider) override;
+	// v11
+	HRESULT __stdcall LoadAsNotficationOnly(BOOL* pbNotificationOnly) override;
 
-private:
+	REFIID GetUuid() const {
+		return __uuidof(ICorProfilerCallback);
+	}
+
+	void Register(const CoreProfiler& coreProfiler) {
+		//auto prof = _profilers;
+		//prof.insert(std::make_pair(coreProfiler.GetUuid(), coreProfiler));
+	}
+
+protected:
 	std::string GetTypeName(mdTypeDef type, ModuleID module) const;
 	std::string GetMethodName(FunctionID function) const;
 
@@ -141,7 +148,22 @@ private:
 	);
 
 	std::atomic<unsigned> _refCount{ 1 };
-	std::map<ClassInfo, std::string> _types;
 	CComPtr<ICorProfilerInfo8> _info;
+
+	//static const std::map<REFIID, const CoreProfiler&> _profilers;
 };
 
+class ExceptionProfiler : public CoreProfiler {
+public:
+	HRESULT __stdcall InitializeForAttach(IUnknown* pICorProfilerInfoUnk, void* pvClientData, UINT cbClientData) override {
+		Logger::Info(__FUNCTION__);
+		pICorProfilerInfoUnk->QueryInterface(&_info);
+		TRY(_info->SetEventMask(COR_PRF_MONITOR_GC));
+		return S_OK;
+	}
+
+	HRESULT __stdcall GarbageCollectionStarted(int cGenerations, BOOL generationCollected[], COR_PRF_GC_REASON reason) override {
+		Logger::Info(__FUNCTION__);
+		return S_OK;
+	}
+};

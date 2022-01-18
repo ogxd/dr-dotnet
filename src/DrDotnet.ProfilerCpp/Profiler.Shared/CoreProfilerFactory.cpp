@@ -31,7 +31,7 @@ HRESULT __stdcall CoreProfilerFactory::CreateInstance(IUnknown* pUnkOuter, REFII
 
 	Logger::Info(__FUNCTION__);
 
-	auto profiler = new (std::nothrow) CoreProfiler;
+	auto profiler = new (std::nothrow) ExceptionProfiler;
 	if (profiler == nullptr)
 		return E_OUTOFMEMORY;
 
